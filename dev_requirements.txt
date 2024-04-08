@@ -1,0 +1,7 @@
+black
+flake8
+geemap
+ipykernel
+earthengine-api
+pandas
+matplotlib
