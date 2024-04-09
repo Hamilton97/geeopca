@@ -20,7 +20,7 @@ def image_collection_to_dataframe(image_collection: ee.ImageCollection):
     ee_list = image_collection.toList(image_collection.size())
     features = ee_list.map(convert2feature)
     feature_col = ee.FeatureCollection(features)
-    return gpd.GeoDataFrame.from_features(feature_col.getInfo()['features'])
+    return gpd.GeoDataFrame.from_features(feature_col.getInfo()["features"])
 
 
 def process_system_index(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -47,3 +47,17 @@ def process_date_time(df: gpd.GeoDataFrame | pd.DataFrame):
     df["year"] = df["timestamp"].dt.year
     df["julian_date"] = df["timestamp"].dt.dayofyear
     return df
+
+def gdf_to_json(gdf: gpd.GeoDataFrame, filename: str = None) -> None:
+    filename = filename or "data.json"
+    if not filename.endswith(".json"):
+        filename = f"{filename}.json"
+
+    grouped_df = gdf.groupby("year")
+    json_data = {}
+    for year, df in grouped_df:
+        data = {year: df["system_index"].tolist()}
+        json_data.update(data)
+
+    with open("data.json", "w") as fh:
+        json.dump(json_data, fh, indent=4)
