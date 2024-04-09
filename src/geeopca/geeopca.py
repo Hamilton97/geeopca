@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, InitVar
 from typing import Callable
 
+import json
 
 import ee
 
@@ -12,9 +13,9 @@ import matplotlib.pyplot as plt
 from timezonefinder import TimezoneFinder
 
 
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # Earth Engine Datasets
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 
 @dataclass
@@ -41,10 +42,7 @@ class EarthEngineDataset:
         )
 
     def add_system_prefix(self):
-        func = lambda x: x.set(
-            "sys_idx", ee.String(self.id).cat("/").cat(x.get("system:index"))
-        )
-        self.dataset = self.dataset.map(func)
+        self.dataset = self.dataset.map(lambda x: x.set("prefix", self.id))
         return self
 
     def filter_out_clouds(self, property: str, value: int | float = 0.0):
@@ -66,12 +64,18 @@ class EarthEngineDataset:
         return ee.ImageCollection(id).filterBounds(aoi).filterDate(*date)
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # EarthEngineConversion
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 def convert2feature(image: ee.Image) -> ee.Feature:
     x = ee.Image(image)
     return ee.Feature(
         x.geometry(),
-        {"sysid": x.get("system:index"), "utc": x.get("system:time_start")},
+        {
+            "sysid": x.get("system:index"),
+            "utc": x.get("system:time_start"),
+            "system_prefix": x.get("prefix"),
+        },
     )
 
 
@@ -87,9 +91,28 @@ def convert_2_dataframe(dataset: EarthEngineDataset) -> gpd.GeoDataFrame:
     )
 
 
+def gdf_to_ee_feature_collection(gdf: gpd.GeoDataFrame):
+    return ee.FeatureCollection(gdf.__geo_interface__)
+
+
+def load_geometry_from_file(filename: str) -> ee.Geometry:
+    gdf = gdf.read_file(filename)
+    eedata = gdf_to_ee_feature_collection(gdf)
+    return eedata.first().geometry()
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # Geo and Data frame processing functions
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+def process_system_index(row):
+    elements = row.split("_")
+    return "_".join([elm for elm in elements if not elm.isdigit()])
+
+
+def make_system_index(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    gdf["sysid"] = gdf["sysid"].apply(process_system_index)
+    gdf["system_index"] = gdf["system_prefix"] + "/" + gdf["sysid"]
+    return gdf
 
 
 def process_date_time(df: gpd.GeoDataFrame | pd.DataFrame):
@@ -108,12 +131,12 @@ def process_date_time(df: gpd.GeoDataFrame | pd.DataFrame):
     return df
 
 
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # Plotting
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 
-def date_time_scatter_plot(df: gpd.GeoDataFrame | pd.DataFrame, filename: str) -> None:
+def date_time_scatter_plot(df: gpd.GeoDataFrame | pd.DataFrame) -> plt.Figure:
     # Create a scatter plot
     fig, ax = plt.subplots()
     # Create a scatter plot on the axes
@@ -136,3 +159,26 @@ def date_time_scatter_plot(df: gpd.GeoDataFrame | pd.DataFrame, filename: str) -
 
     ax.grid(True)
     return fig
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# I/O
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+def gdf_to_json(gdf: gpd.GeoDataFrame, filename: str = None) -> None:
+    filename = filename or "data.json"
+    if not filename.endswith(".json"):
+        filename = f"{filename}.json"
+
+    grouped_df = gdf.groupby("year")
+    json_data = {}
+    for year, df in grouped_df:
+        data = {year: df["system_index"].tolist()}
+        json_data.update(data)
+
+    with open("data.json", "w") as fh:
+        json.dump(json_data, fh, indent=4)
+
+
+def save_plot(figure: plt.Figure, filename: str = None) -> None:
+    filename = filename or "plot.png"
+    figure.savefig(filename)
