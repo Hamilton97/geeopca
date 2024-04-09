@@ -1,0 +1,12 @@
+name: geeopca-dev
+channels:
+  - conda-forge
+
+dependencies:
+  - python
+  - geopandas
+  - earthengine-api
+  - geemap
+  - timezonefinder
+  - ipykernel
+  - black
