@@ -1,3 +1,4 @@
+import json
 import ee
 import geopandas as gpd
 import pandas as pd
@@ -5,7 +6,7 @@ import pandas as pd
 from timezonefinder import TimezoneFinder
 
 
-def image_collection_to_dataframe(image_collection: ee.ImageCollection):
+def image_collection_to_dataframe(image_collection: ee.ImageCollection) -> gpd.GeoDataFrame:
     def convert2feature(image: ee.Image) -> ee.Feature:
         x = ee.Image(image)
         return ee.Feature(
@@ -20,7 +21,8 @@ def image_collection_to_dataframe(image_collection: ee.ImageCollection):
     ee_list = image_collection.toList(image_collection.size())
     features = ee_list.map(convert2feature)
     feature_col = ee.FeatureCollection(features)
-    return gpd.GeoDataFrame.from_features(feature_col.getInfo()["features"])
+    gdf = gpd.GeoDataFrame.from_features(feature_col.getInfo()["features"])
+    return process_system_index(gdf)
 
 
 def process_system_index(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -33,7 +35,7 @@ def process_system_index(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return gdf
 
 
-def process_date_time(df: gpd.GeoDataFrame | pd.DataFrame):
+def localize_utc_time(df: gpd.GeoDataFrame | pd.DataFrame):
     tf = TimezoneFinder()
     df["x"] = df.geometry.centroid.x
     df["y"] = df.geometry.centroid.y
@@ -61,3 +63,24 @@ def gdf_to_json(gdf: gpd.GeoDataFrame, filename: str = None) -> None:
 
     with open("data.json", "w") as fh:
         json.dump(json_data, fh, indent=4)
+
+
+def date_chunks(start: str, end: str):
+    """
+    Generate a list of date chunks between the given start and end dates.
+
+    Args:
+        start (str): The start date in the format 'YYYY-MM-DD'.
+        end (str): The end date in the format 'YYYY-MM-DD'.
+
+    Returns:
+        list: A list of tuples representing the date chunks. Each tuple contains the start and end dates of a chunk.
+
+    Example:
+        >>> date_chunks('2022-01-01', '2022-12-31')
+        [('2022-01-01', '2022-01-31'), ('2022-02-01', '2022-02-28'), ..., ('2022-12-01', '2022-12-31')]
+    """
+
+    start, end = start.split('-'), end.split("-")
+    syear, endyear = int(start.pop(0)), int(end.pop(0))
+    return [(f'{year}-{start[0]}-{start[1]}', f'{year}-{end[0]}-{end[1]}') for year in range(syear, endyear + 1)]
