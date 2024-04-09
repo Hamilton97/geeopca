@@ -17,7 +17,6 @@ from timezonefinder import TimezoneFinder
 # Earth Engine Datasets
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-
 @dataclass
 class EarthEngineDataset:
     id: str
@@ -182,3 +181,8 @@ def gdf_to_json(gdf: gpd.GeoDataFrame, filename: str = None) -> None:
 def save_plot(figure: plt.Figure, filename: str = None) -> None:
     filename = filename or "plot.png"
     figure.savefig(filename)
+
+
+def load_json_data(jsonfile) -> dict[str, list[str]]:
+    with open(jsonfile, 'r') as fh:
+        return json.load(fh)
