@@ -20,3 +20,6 @@ def pca(image: ee.Image, bands: list[str]) -> ee.Image:
     
     return pc_image
 
+
+def temporal_pca(data: list[ee.Image], bands: list[str]):
+    return [pca(image, bands) for image in data]
