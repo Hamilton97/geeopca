@@ -185,4 +185,4 @@ def save_plot(figure: plt.Figure, filename: str = None) -> None:
 
 def load_json_data(jsonfile) -> dict[str, list[str]]:
     with open(jsonfile, 'r') as fh:
-        return json.load(fh)
+        return json.load(h)
