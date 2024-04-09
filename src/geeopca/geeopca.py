@@ -12,57 +12,6 @@ import matplotlib.pyplot as plt
 
 from timezonefinder import TimezoneFinder
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# Earth Engine Datasets
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
-@dataclass
-class EarthEngineDataset:
-    id: str
-    aoi: InitVar[ee.Geometry | ee.FeatureCollection]
-    dates: InitVar[list[tuple[str, str]]]
-
-    def __post_init__(self, aoi, dates):
-
-        self.dataset = None
-        for date in dates:
-            if self.dataset is None:
-                self.dataset = self.make_dataset(self.id, date, aoi)
-                continue
-            self.dataset = self.dataset.merge(self.make_dataset(self.id, date, aoi))
-
-    @property
-    def utc_dates(self) -> ee.List:
-        return (
-            self.dataset.aggregate_array("system:time_start")
-            .map(lambda x: ee.Date(x).format("YYYY-MM-dd"))
-            .distinct()
-        )
-
-    def add_system_prefix(self):
-        self.dataset = self.dataset.map(lambda x: x.set("prefix", self.id))
-        return self
-
-    def filter_out_clouds(self, property: str, value: int | float = 0.0):
-        self.dataset = self.dataset.filter(ee.Filter.lte(property, value))
-        return self
-
-    def map(self, algo: Callable):
-        self.dataset = self.dataset.map(algo)
-        return self
-
-    def size(self) -> ee.Number:
-        return self.dataset.size()
-
-    def build(self) -> ee.ImageCollection:
-        return self.dataset
-
-    @staticmethod
-    def make_dataset(id, date, aoi):
-        return ee.ImageCollection(id).filterBounds(aoi).filterDate(*date)
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # EarthEngineConversion
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -184,5 +133,5 @@ def save_plot(figure: plt.Figure, filename: str = None) -> None:
 
 
 def load_json_data(jsonfile) -> dict[str, list[str]]:
-    with open(jsonfile, 'r') as fh:
+    with open(jsonfile, "r") as fh:
         return json.load(h)
