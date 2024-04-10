@@ -6,7 +6,9 @@ import pandas as pd
 from timezonefinder import TimezoneFinder
 
 
-def image_collection_to_dataframe(image_collection: ee.ImageCollection) -> gpd.GeoDataFrame:
+def image_collection_to_dataframe(
+    image_collection: ee.ImageCollection,
+) -> gpd.GeoDataFrame:
     def convert2feature(image: ee.Image) -> ee.Feature:
         x = ee.Image(image)
         return ee.Feature(
@@ -50,20 +52,6 @@ def localize_utc_time(df: gpd.GeoDataFrame | pd.DataFrame):
     df["julian_date"] = df["timestamp"].dt.dayofyear
     return df
 
-def gdf_to_json(gdf: gpd.GeoDataFrame, filename: str = None) -> None:
-    filename = filename or "data.json"
-    if not filename.endswith(".json"):
-        filename = f"{filename}.json"
-
-    grouped_df = gdf.groupby("year")
-    json_data = {}
-    for year, df in grouped_df:
-        data = {year: df["system_index"].tolist()}
-        json_data.update(data)
-
-    with open("data.json", "w") as fh:
-        json.dump(json_data, fh, indent=4)
-
 
 def date_chunks(start: str, end: str):
     """
@@ -81,6 +69,9 @@ def date_chunks(start: str, end: str):
         [('2022-01-01', '2022-01-31'), ('2022-02-01', '2022-02-28'), ..., ('2022-12-01', '2022-12-31')]
     """
 
-    start, end = start.split('-'), end.split("-")
+    start, end = start.split("-"), end.split("-")
     syear, endyear = int(start.pop(0)), int(end.pop(0))
-    return [(f'{year}-{start[0]}-{start[1]}', f'{year}-{end[0]}-{end[1]}') for year in range(syear, endyear + 1)]
+    return [
+        (f"{year}-{start[0]}-{start[1]}", f"{year}-{end[0]}-{end[1]}")
+        for year in range(syear, endyear + 1)
+    ]
