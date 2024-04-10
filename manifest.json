@@ -1,0 +1,13 @@
+{
+    "pca": {
+        "datafile": "",
+        "year": "2018",
+        "bands": [
+            ""
+        ]
+    },
+    "export": {
+        "destination": "<drive | cloud>",
+        "params": {}
+    }
+}
