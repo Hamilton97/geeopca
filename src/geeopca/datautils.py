@@ -1,9 +1,8 @@
+from typing import Any
 import json
-import ee
+
 import geopandas as gpd
 import pandas as pd
-
-from timezonefinder import TimezoneFinder
 
 
 def date_chunks(start: str, end: str):
@@ -43,3 +42,23 @@ def gdf_to_json(gdf: gpd.GeoDataFrame, filename: str = None) -> None:
 
     with open("data.json", "w") as fh:
         json.dump(json_data, fh, indent=4)
+
+
+class DateRanger:
+    def __init__(self, start: str, end: str) -> None:
+        self.steps = self.compute_date_ranges(start, end)
+    
+    def __len__(self) -> int:
+        return len(self.steps)
+
+    def __getitem__(self, __idx: int) -> Any:
+        return self.steps[__idx]
+    
+    @staticmethod
+    def compute_date_ranges(start, end) -> list[tuple[str, str]]:
+        start, end = start.split("-"), end.split("-")
+        syear, endyear = int(start.pop(0)), int(end.pop(0))
+        return [
+            (f"{year}-{start[0]}-{start[1]}", f"{year}-{end[0]}-{end[1]}")
+            for year in range(syear, endyear + 1)
+        ]
