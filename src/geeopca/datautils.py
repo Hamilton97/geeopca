@@ -1,8 +1,15 @@
 from typing import Any
 import json
 
+import ee
 import geopandas as gpd
 import pandas as pd
+
+
+def spatialfile2ee(filename: str) -> ee.Geometry:
+    gdf = gpd.read_file(filename)
+    first_row = gdf.iloc[[0]]
+    return ee.FeatureCollection(first_row.__geo_interface__).geometry()
 
 
 def date_chunks(start: str, end: str):
