@@ -44,7 +44,7 @@ class RemoteSenesingDataset:
         features = ee_list.map(convert2feature)
         feature_col = ee.FeatureCollection(features)
         df = gpd.GeoDataFrame.from_features(feature_col.getInfo()["features"])
-        
+
         # date time conversion
         tf = TimezoneFinder()
         df["x"] = df.geometry.centroid.x
