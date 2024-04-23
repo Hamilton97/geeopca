@@ -2,14 +2,8 @@ from typing import Any
 import ee
 
 
-class Opca:
-    def __init__(self, time_series: list[ee.Image]) -> None:
-        self.pca = [self.compute_pca(_) for _ in time_series]
-
-    def __getitem__(self, index) -> ee.Image:
-        return self.pca[index]
-
-    def compute_pca(self, image: ee.Image) -> ee.Image:
+class OpcaCalculator:
+    def compute(self, image: ee.Image) -> ee.Image:
         pc_names = self.get_names('pc_', ee.List.sequence(1, image.bandNames().size()))
         array_image = image.toArray()
         
@@ -23,7 +17,7 @@ class Opca:
         eigen_vec = eigens.slice(1, 1)
         principal_compoents = ee.Image(eigen_vec).matrixMultiply(array_image.toArray(1))
         return principal_compoents.arrayProject([0]).arrayFlatten([pc_names])
-
+    
     @staticmethod
     def get_names(prefix: str, sequence: list[int] | ee.List):
         return ee.List(sequence).map(lambda x: ee.String(prefix).cat(ee.Number(x).int()))

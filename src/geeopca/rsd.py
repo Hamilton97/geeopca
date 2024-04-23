@@ -77,3 +77,5 @@ class Sentinel2TOA(RemoteSenesingDataset):
         super().__init__(
             "COPERNICUS/S2_HARMONIZED", aoi, start, end, "CLOUDY_PIXEL_PERCENTAGE"
         )
+
+
