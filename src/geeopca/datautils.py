@@ -5,11 +5,30 @@ import ee
 import geopandas as gpd
 import pandas as pd
 
+from timezonefinder import TimezoneFinder
+
 
 def spatialfile2ee(filename: str) -> ee.Geometry:
     gdf = gpd.read_file(filename)
     first_row = gdf.iloc[[0]]
     return ee.FeatureCollection(first_row.__geo_interface__).geometry()
+
+
+def localize_utc(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    # date time conversion
+    tf = TimezoneFinder()
+    df["x"] = df.geometry.centroid.x
+    df["y"] = df.geometry.centroid.y
+    df["timezone"] = df.apply(lambda x: tf.timezone_at(lng=x["x"], lat=x["y"]), axis=1)
+    df["utc"] = df["utc"] / 1000.0
+    df["timestamp"] = pd.to_datetime(df["utc"], unit="s")
+    df["timestamp"] = df["timestamp"].dt.tz_localize("UTC")
+    df["timestamp"] = df.apply(
+        lambda row: row["timestamp"].tz_convert(row["timezone"]), axis=1
+    )
+    df["year"] = df["timestamp"].dt.year
+    df["julian_date"] = df["timestamp"].dt.dayofyear
+    return df
 
 
 def date_chunks(start: str, end: str):
@@ -54,13 +73,13 @@ def gdf_to_json(gdf: gpd.GeoDataFrame, filename: str = None) -> None:
 class DateRanger:
     def __init__(self, start: str, end: str) -> None:
         self.steps = self.compute_date_ranges(start, end)
-    
+
     def __len__(self) -> int:
         return len(self.steps)
 
     def __getitem__(self, __idx: int) -> Any:
         return self.steps[__idx]
-    
+
     @staticmethod
     def compute_date_ranges(start, end) -> list[tuple[str, str]]:
         start, end = start.split("-"), end.split("-")
