@@ -1,5 +1,5 @@
 from dataclasses import dataclass, InitVar
-from typing import Any
+from typing import Any, List, Optional
 import ee
 import pandas as pd
 
@@ -7,10 +7,22 @@ from pprint import pprint
 
 TABLE: str = r"C:\Users\rhamilton\github\geeopca\table.csv"
 TARGET_YEAR: int = 2019
-SELECTORS: list[str] | None = ['SWM']
-NDVI: bool = False
+SELECTORS: list[str] | None = None
+NDVI: bool = True
 NDWI: bool = False
-SWM: bool = True
+SWM: bool = False
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# DO NOT CHANGE ANYTHING BELOW #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+@dataclass(frozen=True)
+class Config:
+    table: str
+    target_year: int
+    ndvi: bool
+    ndwi: bool 
+    swm: bool
+    selectors: Optional[List[str]] = None
 
 
 class Calculators:
@@ -58,25 +70,25 @@ def prepare_images_dataset(args_array: list[str]):
     return dataset
 
 
-def process_image_dataset(dataset: list[Sentinel2Image]):
+def process_image_dataset(dataset: list[Sentinel2Image], config: Config):
     processed_images = []
     for image in dataset:
-        if NDVI:
+        if config.ndvi:
             image.add_ndvi()
         
-        if NDWI:
+        if config.ndwi:
             image.add_ndwi()
         
-        if isinstance(image, Sentinel2Image) and SWM:
+        if isinstance(image, Sentinel2Image) and config.swm:
             image.add_sentinel_water_mask()
 
         processed_images.append(image)
+    selectors = config.selectors
+    if selectors is not None and len(selectors) == 1:
+        return [ee.Image.cat(*[x.ee_image.select(selectors) for x in processed_images])]
 
-    if SELECTORS is not None and len(SELECTORS) == 1:
-        return [ee.Image.cat(*[x.ee_image.select(SELECTORS) for x in processed_images])]
-
-    if SELECTORS is not None and len(SELECTORS) > 1:
-        return [x.ee_image.select(SELECTORS) for x in processed_images]
+    if selectors is not None and len(selectors) > 1:
+        return [x.ee_image.select(selectors) for x in processed_images]
 
     return [x.ee_image for x in processed_images]
 
@@ -112,12 +124,12 @@ def get_opca_min_max(pc_image: ee.Image) -> Any:
     return stats
 
 
-def main():
-    df = pd.read_csv(TABLE)
-    df = df[df["year"] == TARGET_YEAR]
+def main(config: Config):
+    df = pd.read_csv(config.table)
+    df = df[df["year"] == config.target_year]
     args_array: list[str] = df["syspath"].tolist()
     prepared_data = prepare_images_dataset(args_array)
-    processed_data = process_image_dataset(prepared_data)
+    processed_data = process_image_dataset(prepared_data, config)
    
     for x in processed_data:
         print(x.bandNames().getInfo())
@@ -129,4 +141,12 @@ def main():
 
 if __name__ == "__main__":
     ee.Initialize()
-    main()
+    config = Config(
+        table=TABLE,
+        target_year=TARGET_YEAR,
+        selectors=SELECTORS,
+        ndvi=NDVI,
+        ndwi=NDWI,
+        swm=SWM
+    )
+    main(config)
