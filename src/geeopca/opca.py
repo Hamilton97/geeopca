@@ -1,26 +1,27 @@
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass
 from typing import Any, List, Optional
 import ee
 import pandas as pd
 
 from pprint import pprint
 
-TABLE: str = r"C:\Users\rhamilton\github\geeopca\table.csv"
+TABLE: str = r"C:\Users\rhamilton\explore-pca\table.csv"
 TARGET_YEAR: int = 2019
 SELECTORS: list[str] | None = None
-NDVI: bool = True
+NDVI: bool = False
 NDWI: bool = False
 SWM: bool = False
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # DO NOT CHANGE ANYTHING BELOW #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 @dataclass(frozen=True)
 class Config:
     table: str
     target_year: int
     ndvi: bool
-    ndwi: bool 
+    ndwi: bool
     swm: bool
     selectors: Optional[List[str]] = None
 
@@ -36,8 +37,9 @@ class Calculators:
 
     @staticmethod
     def sentinel_water_mask():
-        return lambda x: x.expression('(b("B2") + b("B3")) / (b("B8") + b("B11"))').rename("SWM")
-        
+        return lambda x: x.expression(
+            '(b("B2") + b("B3")) / (b("B8") + b("B11"))'
+        ).rename("SWM")
 
 
 class Sentinel2Image:
@@ -49,15 +51,17 @@ class Sentinel2Image:
             Calculators.compute_ndvi("B8", "B4")(self.ee_image).rename("NDVI")
         )
         return self
-    
+
     def add_ndwi(self):
         self.ee_image = self.ee_image.addBands(
-            Calculators.compute_ndwi('B3', 'B8')(self.ee_image)
+            Calculators.compute_ndwi("B3", "B8")(self.ee_image)
         )
         return self
 
     def add_sentinel_water_mask(self):
-        self.ee_image = self.ee_image.addBands(Calculators.sentinel_water_mask()(self.ee_image))
+        self.ee_image = self.ee_image.addBands(
+            Calculators.sentinel_water_mask()(self.ee_image)
+        )
         return self
 
 
@@ -75,10 +79,10 @@ def process_image_dataset(dataset: list[Sentinel2Image], config: Config):
     for image in dataset:
         if config.ndvi:
             image.add_ndvi()
-        
+
         if config.ndwi:
             image.add_ndwi()
-        
+
         if isinstance(image, Sentinel2Image) and config.swm:
             image.add_sentinel_water_mask()
 
@@ -91,6 +95,7 @@ def process_image_dataset(dataset: list[Sentinel2Image], config: Config):
         return [x.ee_image.select(selectors) for x in processed_images]
 
     return [x.ee_image for x in processed_images]
+
 
 def compute_pca(image: ee.Image) -> ee.Image:
     def get_names(prefix: str, sequence: list[int] | ee.List):
@@ -130,13 +135,12 @@ def main(config: Config):
     args_array: list[str] = df["syspath"].tolist()
     prepared_data = prepare_images_dataset(args_array)
     processed_data = process_image_dataset(prepared_data, config)
-   
+
     for x in processed_data:
         print(x.bandNames().getInfo())
-        pca_image = compute_pca(x).select('pc_[1-4]')
+        pca_image = compute_pca(x).select("pc_[1-4]")
         pprint(pca_image.bandNames().getInfo())
         break
-    
 
 
 if __name__ == "__main__":
@@ -147,6 +151,6 @@ if __name__ == "__main__":
         selectors=SELECTORS,
         ndvi=NDVI,
         ndwi=NDWI,
-        swm=SWM
+        swm=SWM,
     )
     main(config)

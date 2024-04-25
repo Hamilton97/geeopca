@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Callable
 import json
 
 import ee
@@ -88,3 +88,17 @@ class DateRanger:
             (f"{year}-{start[0]}-{start[1]}", f"{year}-{end[0]}-{end[1]}")
             for year in range(syear, endyear + 1)
         ]
+
+
+class Calaculators:
+    @staticmethod
+    def add_ndvi(nir, red) -> callable:
+        return lambda x: x.addBands(x.normalizedDifference([nir, red]).rename("NDVI"))
+
+    @staticmethod
+    def add_ndwi(green, nir) -> Callable:
+        return lambda x: x.addBands(x.normalizedDifference([green, nir]).rename("NDWI"))
+
+    @staticmethod
+    def add_swm():
+        raise NotImplementedError
