@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 from timezonefinder import TimezoneFinder
 
 
-DATASET = "s2"  # 1,2,3,4
-SPATIAL_FILE = "users/ryangilberthamilton/bq-trend-analysis/subset_BoQ_for_Ken_v2"
+DATASET = "s2" 
+SPATIAL_FILE = '<SPATIAL FILE GOES HERE>'
 OUTPUT_DIR = "."
 PLOT_NAME = "figure.png"
 TABLE_NAME = "table.csv"

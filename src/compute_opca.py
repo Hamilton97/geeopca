@@ -1,17 +1,23 @@
 from dataclasses import dataclass
 from typing import Any, List, Optional
 import ee
+import ee.batch
 import pandas as pd
 
 from pprint import pprint
 
-TABLE: str = r"C:\Users\rhamilton\explore-pca\table.csv"
+TABLE: str = '<PATH TO TABLE GOES HERE>'
 TARGET_YEAR: int = 2019
 SELECTORS: list[str] | None = None
 NDVI: bool = False
 NDWI: bool = False
 SWM: bool = False
 
+# CLOUD EXPORT CONFIG
+CLOUD_BUCKET = "<BUCKET_ID_GOES_HERE>"
+SCALE=10
+START_TASK = True
+REGION = "<ASSET_ID_GOES_HERE>"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # DO NOT CHANGE ANYTHING BELOW #
@@ -128,6 +134,25 @@ def get_opca_min_max(pc_image: ee.Image) -> Any:
     )
     return stats
 
+def export_to_cloud(image: ee.Image, bucket: str, description: str, scale: int, start: bool = True):
+    task = ee.batch.Export.image.toCloudStorage(
+        image=image,
+        bucket=bucket,
+        fileNamePrefix=f'{description}/{description}-',
+        description=description,
+        scale=scale,
+        region=ee.FeatureCollection(REGION).geometry(),
+        crs='EPSG:4326',
+        maxPixels=1e13,
+        fileDimensions=[2048, 2048],
+        skipEmptyTiles=True,
+        formatOptions={'cloudOptimized': True}
+    )
+    if start:
+        task.start()
+        return task
+    return task
+
 
 def main(config: Config):
     df = pd.read_csv(config.table)
@@ -136,10 +161,15 @@ def main(config: Config):
     prepared_data = prepare_images_dataset(args_array)
     processed_data = process_image_dataset(prepared_data, config)
 
-    for x in processed_data:
-        print(x.bandNames().getInfo())
+    for idx, x in enumerate(processed_data, start=1):
         pca_image = compute_pca(x).select("pc_[1-4]")
-        pprint(pca_image.bandNames().getInfo())
+        export_to_cloud(
+            image=pca_image,
+            bucket=CLOUD_BUCKET,
+            description=f"PCA_IMAGE_{idx}_of_{len(processed_data)}",
+            scale=SCALE,
+            start=START_TASK
+        )
         break
 
 
